@@ -49,20 +49,30 @@ type PackageConfig struct {
 	Clusters []string `json:"clusters"`
 }
 
+var flagCommand = flag.String("command", "", "Specific command to run (build, deploy, post-deploy)")
+var flagImageRoot = flag.String("image-root", "", "Docker image registry and root")
+var flagDryRun = flag.Bool("dry-run", false, "Use flag --dry-run on kubectl")
+var flagDockerArgs = flag.String("docker-args", "", "Docker build args '--build-arg'")
+var flagSkipPackages = flag.String("skip-packages", "", "Skip provided packages '--skip-packages example-1 package-2'")
+var flagClusterName = flag.String("cluster-name", "", "Cluster name 'dev-cluster'")
+
+var flagOutputDesc = "View output yaml"
+var flagOutput = flag.String("output", "", flagOutputDesc)
+
 func main() {
 	var packages []Package
 
-	flagImageRoot := flag.String("image-root", "", "Docker image registry and root")
-	flagDryRun := flag.Bool("dry-run", false, "Use flag --dry-run on kubectl")
-	flagDockerArgs := flag.String("docker-args", "", "Docker build args '--build-arg'")
 	// flagDiffCommit := flag.String("diff-commit", "", "Only build/deploy package if changed since provided git commit")
-	flagOutputDesc := "View output yaml"
-	flagOutput := flag.String("output", "", flagOutputDesc)
 	flag.StringVar(flagOutput, "o", "", flagOutputDesc)
 
 	flag.Parse()
 	if *flagImageRoot == "" {
 		log.Fatal("arg -image-root is required")
+	}
+
+	skippedPackages := strings.Split(*flagSkipPackages, " ")
+	if len(skippedPackages) > 0 {
+		color.Cyan("Skipping %v packages", len(skippedPackages))
 	}
 
 	paths, err := getLernaConfig()
@@ -75,9 +85,15 @@ func main() {
 		color.Red("error fetching git commit - continuing without")
 	}
 
-	// assemble the list of packages in the project
+	// Assemble the list of packages in the project
+OUTER:
 	for _, pth := range paths {
 		name := filepath.Base(pth)
+		for _, v := range skippedPackages {
+			if v == name {
+				continue OUTER
+			}
+		}
 		pkg := Package{
 			Name:        name,
 			Commit:      rev,
@@ -101,7 +117,7 @@ func main() {
 		}
 		pkg.Image = getImage(flagImageRoot, pkg)
 
-		// parse k8s templates
+		// Parse k8s templates
 		pkg.Manifests = parseManifests(kglob, pkg)
 		packages = append(packages, pkg)
 
@@ -111,39 +127,52 @@ func main() {
 		color.Cyan("dry-run is set")
 	}
 
-	// build the docker images as needed
-	for _, pkg := range packages {
-		dockerPath := pkg.Path + "/Dockerfile"
-		if !pkg.BuildDocker {
-			continue
-		}
-		cmd := fmt.Sprintf("docker build %s -t %s -f %s %s", pkg.DockerArgs, pkg.Image, dockerPath, pkg.Path)
-		fmt.Println(cmd)
-		err := runBackground(pkg, "bash", "-c", cmd)
-		if err != nil {
-			color.Red("error building image %s %e \n", pkg.Image, err)
-			break
-		}
-		color.Green("built image: %s\n", pkg.Image)
+	if *flagCommand != "" && *flagCommand != "build" && *flagCommand != "deploy" && *flagCommand != "post-deploy" {
+		color.Red("error: invalid command '%s'", *flagCommand)
+	}
 
-		if *flagDryRun {
-			color.Yellow("not pushing docker images as dry-run is set")
-			continue
-		}
-		err = runBackground(pkg, "docker", "push", pkg.Image)
-		if err != nil {
-			color.Red("error pushing image %s %e \n", pkg.Image, err)
-			break
+	// Build the docker images as needed
+	if *flagCommand == "" || *flagCommand == "build" {
+		for _, pkg := range packages {
+			dockerPath := pkg.Path + "/Dockerfile"
+			if !pkg.BuildDocker {
+				continue
+			}
+			cmd := fmt.Sprintf("docker build %s -t %s -f %s %s", pkg.DockerArgs, pkg.Image, dockerPath, pkg.Path)
+			fmt.Println(cmd)
+			err := runBackground(pkg, "bash", "-c", cmd)
+			if err != nil {
+				color.Red("error building image %s %e \n", pkg.Image, err)
+				break
+			}
+			color.Cyan("built image: %s\n", pkg.Image)
+
+			if *flagDryRun {
+				color.Yellow("not pushing docker images as dry-run is set")
+				continue
+			}
+			err = runBackground(pkg, "docker", "push", pkg.Image)
+			if err != nil {
+				color.Red("error pushing image %s %e \n", pkg.Image, err)
+				break
+			}
 		}
 	}
 
-	// all images are built and pushed - now start the kube rollout
-
-	applyManifests(packages, "normal", flagDryRun, flagOutput)
-	applyManifests(packages, "post-deploy", flagDryRun, flagOutput)
+	// All images are built and pushed - now start the kube rollout
+	if *flagCommand == "" || *flagCommand == "deploy" {
+		color.Cyan("running deployments")
+		applyManifests(packages, "normal")
+	}
+	// Run the post-deploy tasks
+	if *flagCommand == "" || *flagCommand == "post-deploy" {
+		color.Cyan("running post-deployment tasks")
+		applyManifests(packages, "post-deploy")
+	}
+	color.Green("all done")
 }
 
-func applyManifests(packages []Package, runCondition string, flagDryRun *bool, flagOutput *string) {
+func applyManifests(packages []Package, runCondition string) {
 	for _, pkg := range packages {
 		dryRun := ""
 		output := ""
@@ -154,10 +183,30 @@ func applyManifests(packages []Package, runCondition string, flagDryRun *bool, f
 			output = fmt.Sprintf(" --output %s", *flagOutput)
 		}
 
+	OUTER:
 		for _, manifest := range pkg.Manifests {
-			// run at end
+			// Run at end
 			if manifest.RunCondition != runCondition {
 				continue
+			}
+			// Check if package has a Cluster specified
+			// Note: if a package does not have the `cluster` specified it will be deployed always
+			if len(pkg.Clusters) > 0 {
+				if *flagClusterName == "" {
+					color.Yellow("package %s has clusters provided but --cluster-name not provided", pkg.Name)
+				} else {
+					found := false
+					for _, v := range pkg.Clusters {
+						if *flagClusterName == v {
+							found = true
+						}
+					}
+					if !found {
+						color.Yellow("cluster name mismatch - cluster %s not found in %s config", *flagClusterName, pkg.Name)
+						continue OUTER
+					}
+				}
+
 			}
 			err := runBackground(pkg, "bash", "-c", fmt.Sprintf("echo '%s' | kubectl apply %s%s -f -", manifest.File, output, dryRun))
 			if err != nil {
@@ -177,7 +226,7 @@ func parseManifests(paths []string, pkg Package) []Manifest {
 	for _, pth := range paths {
 		f, err := ioutil.ReadFile(pth)
 		runCondition := "normal"
-		if pth == "post-deploy.yaml" {
+		if filepath.Base(pth) == "post-deploy.yaml" {
 			runCondition = "post-deploy"
 		}
 		if err != nil {
@@ -264,7 +313,7 @@ func getImage(imageRoot *string, pkg Package) string {
 	if pkg.Commit != "" {
 		commit = "-" + pkg.Commit
 	}
-	return fmt.Sprintf("%s/%s:%s%s", *imageRoot, pkg.Name, pkg.Version, commit)
+	return strings.TrimSuffix(fmt.Sprintf("%s/%s:%s%s", *imageRoot, pkg.Name, pkg.Version, commit), "\n")
 }
 
 func runBackground(pkg Package, name string, args ...string) error {

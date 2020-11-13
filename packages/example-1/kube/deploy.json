@@ -1,5 +1,6 @@
 {
 	"clusters": [
-		"my-cluster-name"
+		"k3s",
+		"other"
 	]
 }
