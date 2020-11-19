@@ -11,5 +11,7 @@ go run main.go \
 	--image-root stevelacy \
 	--docker-args="--build-arg PACKAGE={{ .Name }}" \
 	--cluster-name $CLUSTER_NAME \
-	# --command post-deploy
+	--only-packages example-1 \
+	# --path ./services
 	# --skip-packages example-1 \
+	# --command post-deploy

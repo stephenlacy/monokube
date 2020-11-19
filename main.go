@@ -14,6 +14,7 @@ import (
 	"text/template"
 
 	"github.com/fatih/color"
+	"gopkg.in/yaml.v2"
 )
 
 var lernaRoot = "lerna.json"
@@ -36,6 +37,14 @@ type Package struct {
 type Manifest struct {
 	File         string
 	RunCondition string
+	Kube         KubeManifest // unused
+}
+
+// KubeManifest represents the basic values needed from k8s
+// unused
+type KubeManifest struct {
+	Name string
+	Kind string
 }
 
 // LernaConfig is a basic representation of a lerna config file
@@ -47,6 +56,8 @@ type LernaConfig struct {
 type PackageConfig struct {
 	Version  string   `json:"version"`
 	Clusters []string `json:"clusters"`
+	Watch    bool     `json:"watch"`
+	Kind     string   `json:"kind"`
 }
 
 var flagCommand = flag.String("command", "", "Specific command to run (build, deploy, post-deploy)")
@@ -54,7 +65,9 @@ var flagImageRoot = flag.String("image-root", "", "Docker image registry and roo
 var flagDryRun = flag.Bool("dry-run", false, "Use flag --dry-run on kubectl")
 var flagDockerArgs = flag.String("docker-args", "", "Docker build args '--build-arg'")
 var flagSkipPackages = flag.String("skip-packages", "", "Skip provided packages '--skip-packages example-1 package-2'")
+var flagOnlyPackages = flag.String("only-packages", "", "Only deploy provided packages '--only-packages example-1'")
 var flagClusterName = flag.String("cluster-name", "", "Cluster name 'dev-cluster'")
+var flagPath = flag.String("path", "", "Path for packages `packages`")
 
 var flagOutputDesc = "View output yaml"
 var flagOutput = flag.String("output", "", flagOutputDesc)
@@ -70,18 +83,21 @@ func main() {
 		log.Fatal("arg -image-root is required")
 	}
 
-	skippedPackages := strings.Split(*flagSkipPackages, " ")
+	skippedPackages := strings.Fields(*flagSkipPackages)
 	if len(skippedPackages) > 0 {
-		color.Cyan("Skipping %v packages", len(skippedPackages))
+		color.Cyan("Skipping %v package(s)", len(skippedPackages))
 	}
 
-	paths, err := getLernaConfig()
+	onlyPackages := strings.Fields(*flagOnlyPackages)
+
+	paths, err := getPaths()
 	if err != nil {
 		panic(err)
 	}
-	rev, err := getCommit()
 	env := envToMap()
+	rev, err := getCommit()
 	if err != nil {
+		rev = ""
 		color.Red("error fetching git commit - continuing without")
 	}
 
@@ -89,8 +105,15 @@ func main() {
 OUTER:
 	for _, pth := range paths {
 		name := filepath.Base(pth)
+		// Skip packages if flag is provided
 		for _, v := range skippedPackages {
 			if v == name {
+				continue OUTER
+			}
+		}
+		// Only deploy packages if flag is provided
+		for _, v := range onlyPackages {
+			if v != "" && v != name {
 				continue OUTER
 			}
 		}
@@ -114,6 +137,7 @@ OUTER:
 		if err == nil {
 			pkg.Version = pkgCfg.Version
 			pkg.Clusters = pkgCfg.Clusters
+			pkg.Kind = pkgCfg.Kind
 		}
 		pkg.Image = getImage(flagImageRoot, pkg)
 
@@ -122,7 +146,6 @@ OUTER:
 		packages = append(packages, pkg)
 
 	}
-	color.Cyan("discovered %d package(s) \n", len(packages))
 	if *flagDryRun {
 		color.Cyan("dry-run is set")
 	}
@@ -133,6 +156,7 @@ OUTER:
 
 	// Build the docker images as needed
 	if *flagCommand == "" || *flagCommand == "build" {
+		color.Cyan("building %d package(s) \n", len(packages))
 		for _, pkg := range packages {
 			dockerPath := pkg.Path + "/Dockerfile"
 			if !pkg.BuildDocker {
@@ -215,7 +239,7 @@ func applyManifests(packages []Package, runCondition string) {
 			}
 
 			if !*flagDryRun {
-				runBackground(pkg, "kubectl", "rollout", "status", "deployment/"+pkg.Name)
+				runBackground(pkg, "kubectl", "rollout", "status", pkg.Kind+"/"+pkg.Name)
 			}
 		}
 	}
@@ -238,7 +262,10 @@ func parseManifests(paths []string, pkg Package) []Manifest {
 			color.Red("error parsing %s: %e \n", pth, err)
 			continue
 		}
-		manifests = append(manifests, Manifest{File: str, RunCondition: runCondition})
+		m := KubeManifest{}
+		_ = yaml.Unmarshal([]byte(str), &m)
+		mani := Manifest{File: str, RunCondition: runCondition, Kube: m}
+		manifests = append(manifests, mani)
 	}
 	return manifests
 }
@@ -253,9 +280,12 @@ func parseTemplate(input string, pkg Package) (string, error) {
 	return tpl.String(), err
 }
 
-func getLernaConfig() ([]string, error) {
+func getPaths() ([]string, error) {
 	lernaCfg := LernaConfig{}
 
+	if *flagPath != "" {
+		return parseGlobs([]string{fmt.Sprintf("%s/*", *flagPath)}), nil
+	}
 	if checkFile(lernaRoot) {
 		f, err := ioutil.ReadFile(lernaRoot)
 		if err != nil {
@@ -286,6 +316,9 @@ func getPackageConfig(pth string) (PackageConfig, error) {
 		}
 		json.Unmarshal(f, &cfg0)
 	}
+	if cfg0.Kind == "" {
+		cfg0.Kind = "deployment"
+	}
 	return cfg0, nil
 }
 
@@ -308,6 +341,7 @@ func checkFile(path string) bool {
 	}
 	return !info.IsDir()
 }
+
 func getImage(imageRoot *string, pkg Package) string {
 	commit := ""
 	if pkg.Commit != "" {

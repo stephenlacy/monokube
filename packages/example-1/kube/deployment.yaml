@@ -5,11 +5,13 @@ metadata:
   namespace: {{ .Env.NAMESPACE }}
   labels:
     app: {{ .Name }}
+    version: {{ .Version }}
 spec:
   replicas: 3
   selector:
     matchLabels:
       app: {{ .Name }}
+      version: {{ .Version }}
   template:
     metadata:
       labels:
@@ -51,7 +53,7 @@ metadata:
     kubernetes.io/ingress.class: "nginx"
 spec:
   rules:
-  - host: "{{ .Name }}-staged.{{ .Env.ROOT_DOMAIN }}"
+  - host: "{{ .Name }}.staging.{{ .Env.ROOT_DOMAIN }}"
     http:
       paths:
       - path: /
