@@ -1,0 +1,155 @@
+# The configurations that used for the recording, feel free to edit them
+config:
+
+  # Specify a command to be executed
+  # like `/bin/bash -l`, `ls`, or any other commands
+  # the default is bash for Linux
+  # or powershell.exe for Windows
+  command: zsh
+
+  # Specify the current working directory path
+  # the default is the current working directory path
+  cwd: monokube
+
+  # Export additional ENV variables
+  env:
+    recording: true
+
+  # Explicitly set the number of columns
+  # or use `auto` to take the current
+  # number of columns of your shell
+  cols: 70
+
+  # Explicitly set the number of rows
+  # or use `auto` to take the current
+  # number of rows of your shell
+  rows: 14
+
+  # Amount of times to repeat GIF
+  # If value is -1, play once
+  # If value is 0, loop indefinitely
+  # If value is a positive number, loop n times
+  repeat: 0
+
+  # Quality
+  # 1 - 100
+  quality: 100
+
+  # Delay between frames in ms
+  # If the value is `auto` use the actual recording delays
+  frameDelay: auto
+
+  # Maximum delay between frames in ms
+  # Ignored if the `frameDelay` isn't set to `auto`
+  # Set to `auto` to prevent limiting the max idle time
+  maxIdleTime: 2000
+
+  # The surrounding frame box
+  # The `type` can be null, window, floating, or solid`
+  # To hide the title use the value null
+  # Don't forget to add a backgroundColor style with a null as type
+  frameBox:
+    type: floating
+    title: null
+    style:
+      border: 0px black solid
+      # boxShadow: none
+      margin: 0px
+      padding: 16px
+
+  # Add a watermark image to the rendered gif
+  # You need to specify an absolute path for
+  # the image on your machine or a URL, and you can also
+  # add your own CSS styles
+  watermark:
+    imagePath: null
+    style:
+      position: absolute
+      right: 15px
+      bottom: 15px
+      width: 100px
+      opacity: 0.9
+
+  # Cursor style can be one of
+  # `block`, `underline`, or `bar`
+  cursorStyle: block
+
+  # Font family
+  # You can use any font that is installed on your machine
+  # in CSS-like syntax
+  fontFamily: "Monaco, Lucida Console, Ubuntu Mono, Monospace"
+
+  # The size of the font
+  fontSize: 18
+
+  # The height of lines
+  lineHeight: 1
+
+  # The spacing between letters
+  letterSpacing: 0
+
+  # Theme
+  theme:
+    background: "transparent"
+    foreground: "#afafaf"
+    cursor: "#c7c7c7"
+    black: "#232628"
+    red: "#fc4384"
+    green: "#b3e33b"
+    yellow: "#ffa727"
+    blue: "#75dff2"
+    magenta: "#ae89fe"
+    cyan: "#1db2d1"
+    white: "#d5d5d0"
+    brightBlack: "#000000"
+    brightRed: "#fc4384"
+    brightGreen: "#b3e33b"
+    brightYellow: "#ffa727"
+    brightBlue: "#75dff2"
+    brightMagenta: "#ae89fe"
+    brightCyan: "#1db2d1"
+    brightWhite: "#efefef"
+
+# Records, feel free to edit them
+records:
+  - delay: 100
+    content: >-
+      monokube --image-root stevelacy --docker-args="--build-arg PACKAGE={{ .Name }}
+  - delay: 320
+    content: "\r\n"
+  - delay: 54
+    content: "\e[36mbuilding 1 package(s) \r\n\e[0m"
+  - delay: 346
+    content: "Sending build context to Docker daemon  8.704kB\r\r\r\n"
+  - delay: 56
+    content: "Step 1/8 : FROM golang:1.14.11-alpine3.11 as build_image\r\n ---> 57b0f37ca924\r\nStep 2/8 : ARG PACKAGE\r\n ---> Using cache\r\n ---> 17f740cf9cca\r\nStep 3/8 : WORKDIR /app\r\n ---> Using cache\r\n ---> bf046378a7e2\r\nStep 4/8 : ADD main.go /app\r\n ---> Using cache\r\n ---> b13f31213502\r\nStep 5/8 : RUN GOOS=linux GOARCH=386 CGO_ENABLED=0 go build -o \"${PACKAGE}\" main.go\r\n ---> Using cache\r\n ---> 4af9a2ae8e48\r\nStep 6/8 : FROM alpine:3\r\n ---> d6e46aa2470d\r\nStep 7/8 : ARG PACKAGE\r\n ---> Using cache\r\n ---> 12c48514562b\r\nStep 8/8 : COPY --from=build_image /app/\"${PACKAGE}\" /app/\r\n ---> Using cache\r\n"
+  - delay: 56
+    content: " ---> 18d162cff2a9\r\nSuccessfully built 18d162cff2a9\r\nSuccessfully tagged stevelacy/example-1:1.2.3-6957658\r\n\e[36mbuilt image: stevelacy/example-1:1.2.3-6957658\r\n\e[0m"
+  - delay: 559
+    content: "The push refers to repository [docker.io/stevelacy/example-1]\r\n"
+  - delay: 413
+    content: "\r\n\e[1A\e[2K\rb8fdb665621c: Preparing \r\e[1B\r\n\e[1A\e[2K\race0eda3e3be: Preparing \r\e[1B"
+  - delay: 553
+    content: "\e[2A\e[2K\rb8fdb665621c: Layer already exists \r\e[2B\e[1A\e[2K\race0eda3e3be: Layer already exists \r\e[1B"
+  - delay: 520
+    content: "1.2.3-6957658: digest: sha256:80e3ab3c097d8ec5f92b35f35757d03537750d3909565e64ac4af8580ac452f8 size: 739\r\n"
+  - delay: 9
+    content: "\e[36mrunning deployments\r\n\e[0m\e[33mpackage example-1 has clusters provided but --cluster-name not provided\r\n\e[0m"
+  - delay: 279
+    content: "deployment.apps/example-1 created\r\n"
+  - delay: 15
+    content: "service/example-1-staged unchanged\r\n"
+  - delay: 43
+    content: "ingress.extensions/example-1-staged configured\r\n"
+  - delay: 294
+    content: "Waiting for deployment \"example-1\" rollout to finish: 0 of 3 updated replicas are available...\r\n"
+  - delay: 860
+    content: "Waiting for deployment \"example-1\" rollout to finish: 1 of 3 updated replicas are available...\r\nWaiting for deployment \"example-1\" rollout to finish: 2 of 3 updated replicas are available...\r\ndeployment \"example-1\" successfully rolled out\r\n\e[36mrunning post-deployment tasks\r\n\e[0m\e[33mpackage example-1 has clusters provided but --cluster-name not provided\r\n\e[0m"
+  - delay: 167
+    content: "service/example-1 unchanged\r\n"
+  - delay: 45
+    content: "ingress.extensions/example-1 configured\r\n"
+  - delay: 291
+    content: "deployment \"example-1\" successfully rolled out\r\n\e[32mall done\r\n\e$ "
+  - delay: 2091
+    content: "\r\n"

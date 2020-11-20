@@ -1,4 +1,35 @@
 # monokube
+> Monorepo deployment management
+
+Works with lerna, yarn, and stand-alone monorepos
+
+![monokube.gif](assets/monokube.gif)
+
+
+```
+$ monokube --image-root stevelacy
+
+building 1 package(s)
+Step 1/8 : FROM golang:1.14.11-alpine3.11 as build_image
+...
+ ---> 18d162cff2a9
+Successfully tagged stevelacy/example-1:1.2.3-d80f667
+built image: stevelacy/example-1:1.2.3-d80f667
+The push refers to repository [docker.io/stevelacy/example-1]
+...
+running deployments
+deployment.apps/example-1 configured
+service/example-1-staged unchanged
+Waiting for deployment "example-1" rollout to finish: 1 out of 3 new replicas have been updated...
+Waiting for deployment "example-1" rollout to finish: 2 out of 3 new replicas have been updated...
+Waiting for deployment "example-1" rollout to finish: 1 old replicas are pending termination...
+deployment "example-1" successfully rolled out
+running post-deployment tasks
+service/example-1 unchanged
+ingress.extensions/example-1 configured
+deployment "example-1" successfully rolled out
+all done
+```
 
 
 All together:

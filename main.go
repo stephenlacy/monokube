@@ -170,7 +170,6 @@ OUTER:
 				continue
 			}
 			cmd := fmt.Sprintf("docker build %s -t %s -f %s %s", pkg.DockerArgs, pkg.Image, dockerPath, pkg.Path)
-			fmt.Println(cmd)
 			err := runBackground(pkg, "bash", "-c", cmd)
 			if err != nil {
 				color.Red("error building image %s %e \n", pkg.Image, err)
