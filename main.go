@@ -68,6 +68,7 @@ var flagSkipPackages = flag.String("skip-packages", "", "Skip provided packages 
 var flagOnlyPackages = flag.String("only-packages", "", "Only deploy provided packages '--only-packages example-1'")
 var flagClusterName = flag.String("cluster-name", "", "Cluster name 'dev-cluster'")
 var flagPath = flag.String("path", "", "Path for packages `packages`")
+var flagDiff = flag.String("diff", "", "Diff between current commit and provided commit '--diff 0132547'")
 
 var flagOutputDesc = "View output yaml"
 var flagOutput = flag.String("output", "", flagOutputDesc)
@@ -114,6 +115,12 @@ OUTER:
 		// Only deploy packages if flag is provided
 		for _, v := range onlyPackages {
 			if v != "" && v != name {
+				continue OUTER
+			}
+		}
+		if *flagDiff != "" {
+			if !hasDiff(*flagDiff, pth) {
+				color.Cyan("Package %v has not changed since commit %v", name, *flagDiff)
 				continue OUTER
 			}
 		}
@@ -368,6 +375,14 @@ func runOutput(name string, args ...string) (string, error) {
 
 func getCommit() (string, error) {
 	return runOutput("git", "rev-parse", "--short", "HEAD")
+}
+
+func hasDiff(commit, path string) bool {
+	diff, err := runOutput("bash", "-c", fmt.Sprintf("git diff --name-status %v | grep %v", commit, path))
+	if err != nil {
+		return false
+	}
+	return diff != ""
 }
 
 func envToMap() map[string]string {
