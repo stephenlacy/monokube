@@ -12,7 +12,7 @@ go run main.go \
 	--docker-args="--build-arg PACKAGE={{ .Name }}" \
 	--cluster-name $CLUSTER_NAME \
 	--only-packages example-1 \
-	--command post-deploy
+	--command pre-build
 	# --diff "0132547"
 	# --path ./services
 	# --skip-packages example-1 \

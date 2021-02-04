@@ -74,6 +74,8 @@ var flagDiff = flag.String("diff", "", "Diff between current commit and provided
 var flagOutputDesc = "View output yaml"
 var flagOutput = flag.String("output", "", flagOutputDesc)
 
+var commands []string = []string{"pre-build", "build", "pre-deploy", "deploy", "post-deploy"}
+
 func main() {
 	var packages []Package
 
@@ -101,6 +103,17 @@ func main() {
 	if err != nil {
 		rev = ""
 		color.Red("error fetching git commit - continuing without")
+	}
+
+	valid := false
+	for _, v := range commands {
+		if *flagCommand == v {
+			valid = true
+			break
+		}
+	}
+	if !valid {
+		color.Red("error: invalid command '%s'", *flagCommand)
 	}
 
 	// Assemble the list of packages in the project
@@ -158,8 +171,14 @@ OUTER:
 		color.Cyan("dry-run is set")
 	}
 
-	if *flagCommand != "" && *flagCommand != "build" && *flagCommand != "deploy" && *flagCommand != "post-deploy" {
-		color.Red("error: invalid command '%s'", *flagCommand)
+	if *flagCommand == "" || *flagCommand == "pre-build" {
+		color.Cyan("running pre-build tasks")
+		applyManifests(packages, "pre-build")
+		scripts := "{pre-build.sh}" // Glob patern
+		err := runScripts(packages, scripts)
+		if err != nil {
+			color.Red("error running pre-build %e", err)
+		}
 	}
 
 	// Build the docker images as needed
@@ -187,6 +206,16 @@ OUTER:
 				color.Red("error pushing image %s %e \n", pkg.Image, err)
 				break
 			}
+		}
+	}
+
+	if *flagCommand == "" || *flagCommand == "pre-deploy" {
+		color.Cyan("running pre-deployment tasks")
+		applyManifests(packages, "pre-deploy")
+		scripts := "{pre-deploy.sh}" // Glob patern
+		err := runScripts(packages, scripts)
+		if err != nil {
+			color.Red("error running pre-deploy %e", err)
 		}
 	}
 

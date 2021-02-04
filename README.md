@@ -85,14 +85,26 @@ Example:
 
 #### Command
 > --command
-String _optional_ build | deploy | post-deploy
+String _optional_ pre-build | build | pre-deploy | deploy | post-deploy
 
-If this flag is not provided, all tasks will be run in order: `build` `deploy` `post-deploy`
+If this flag is not provided, all tasks will be run in order: `pre-build` `build` `pre-deploy` `deploy` `post-deploy`
 
 If the flag is provided only that task will be run
 
+##### pre-build
+> applies all kubernetes pre-build manifests and runs all `pre-build.sh` scripts
+Both of these files are either applied or run, yaml is applied before sh:
+- pre-build.yaml
+- pre-build.sh
+
 ##### build
 > builds all docker images
+
+##### pre-deploy
+> applies all kubernetes pre-deploy manifests and runs all `pre-deploy.sh` scripts
+Both of these files are either applied or run, yaml is applied before sh:
+- pre-deploy.yaml
+- pre-deploy.sh
 
 ##### deploy
 > applies all kubernetes manifests
