@@ -87,6 +87,21 @@ Example:
 > --command
 String _optional_ build | deploy | post-deploy
 
+If this flag is not provided, all tasks will be run in order: `build` `deploy` `post-deploy`
+
+If the flag is provided only that task will be run
+
+##### build
+> builds all docker images
+
+##### deploy
+> applies all kubernetes manifests
+
+##### post-deploy
+> applies all kubernetes post-deploy manifests and runs all `post-deploy.sh` scripts
+Both of these files are either applied or run, yaml is applied before sh:
+- post-deploy.yaml
+- post-deploy.sh
 
 #### Path
 > --path

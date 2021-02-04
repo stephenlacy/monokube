@@ -14,6 +14,7 @@ import (
 	"text/template"
 
 	"github.com/fatih/color"
+	"gopkg.in/godo.v2/glob"
 	"gopkg.in/yaml.v2"
 )
 
@@ -198,6 +199,11 @@ OUTER:
 	if *flagCommand == "" || *flagCommand == "post-deploy" {
 		color.Cyan("running post-deployment tasks")
 		applyManifests(packages, "post-deploy")
+		scripts := "{post-deploy.sh}" // Glob patern
+		err := runScripts(packages, scripts)
+		if err != nil {
+			color.Red("error running post-deploy %e", err)
+		}
 	}
 	color.Green("all done")
 }
@@ -249,6 +255,22 @@ func applyManifests(packages []Package, runCondition string) {
 			}
 		}
 	}
+}
+
+// runScripts takes a glob pattern as the second argument for `scripts`, {"script.sh,run.sh"}
+func runScripts(packages []Package, scripts string) error {
+	for _, pkg := range packages {
+		pglob := parseGlobs([]string{pkg.Path + "/kube/" + scripts})
+		for _, pth := range pglob {
+			color.Cyan("running: " + pth)
+			output, err := runOutput(pth)
+			fmt.Println(output)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func parseManifests(paths []string, pkg Package) []Manifest {
@@ -330,12 +352,9 @@ func getPackageConfig(pth string) (PackageConfig, error) {
 
 func parseGlobs(paths []string) []string {
 	joined := []string{}
-	for _, path := range paths {
-		pth, err := filepath.Glob(path)
-		if err != nil {
-			continue
-		}
-		joined = append(joined, pth...)
+	res, _, _ := glob.Glob(paths)
+	for _, fa := range res {
+		joined = append(joined, fa.Path)
 	}
 	return joined
 }
