@@ -45,28 +45,20 @@ monokube \
 	--command post-deploy
 ```
 
-#### Templating
 
-`deployment.yaml` manifest in the `package/kube/` folder is templated with the provided arguments and the ENV
+### Installing
 
-```
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ .Name }}
-  namespace: {{ .Env.NAMESPACE }}
-  labels:
-    app: {{ .Name }}
-    version: {{ .Version }}
+Download the [latest linux-amd64.tar.gz](https://github.com/stevelacy/monokube/releases/latest/download/monokube-linux-amd64.tar.gz) or view the releases list [here](https://github.com/stevelacy/monokube/releases)
 
 ```
-
-Default values provided:
+tar -xf monokube-linux-amd64.tar.gz
+chmod +x monokube
+./monokube
 ```
-Name:     package folder name
-Image:    built docker image
-Version:  `version` field from `package/package.json`
-Env:      key/value map of the current ENV
+
+To install it globally to your usr/bin:
+```
+sudo mv monokube /usr/local/bin
 ```
 
 ### Arguments
@@ -194,4 +186,29 @@ Only build or deploy provided packages
 
 ```
 --only-packages example-1 example-2
+```
+
+
+#### Templating
+
+`deployment.yaml` manifest in the `package/kube/` folder is templated with the provided arguments and the ENV
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Name }}
+  namespace: {{ .Env.NAMESPACE }}
+  labels:
+    app: {{ .Name }}
+    version: {{ .Version }}
+
+```
+
+Default values provided:
+```
+Name:     package folder name
+Image:    built docker image
+Version:  `version` field from `package/package.json`
+Env:      key/value map of the current ENV
 ```
