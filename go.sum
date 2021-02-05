@@ -11,6 +11,7 @@ github.com/mgutz/str v1.2.0/go.mod h1:w1v0ofgLaJdoD0HpQ3fycxKD1WtxpjSo151pK/31q6
 golang.org/x/sys v0.0.0-20200116001909-b77594299b42/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20200223170610-d5e6a3e2c0ae h1:/WDfKMnPU+m5M4xB+6x4kaepxRw6jWvR5iDRdvjHgy8=
 golang.org/x/sys v0.0.0-20200223170610-d5e6a3e2c0ae/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/godo.v2 v2.0.9 h1:jnbznTzXVk0JDKOxN3/LJLDPYJzIl0734y+Z0cEJb4A=
 gopkg.in/godo.v2 v2.0.9/go.mod h1:wgvPPKLsWN0hPIJ4JyxvFGGbIW3fJMSrXhdvSuZ1z/8=

@@ -2,9 +2,9 @@ on:
   push:
     # Sequence of patterns matched against refs/tags
     tags:
-      - 'release*' # Push events to matching release*
+      - 'v*' # Push events matching v*
 
-name: Build
+name: Release
 
 jobs:
   build:
