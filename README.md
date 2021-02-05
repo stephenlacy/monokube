@@ -47,7 +47,7 @@ monokube \
 
 #### Templating
 
-All manifests in the `package/kube/` folder are templated with the provided arguments and the ENV
+`deployment.yaml` manifest in the `package/kube/` folder is templated with the provided arguments and the ENV
 
 ```
 apiVersion: apps/v1
@@ -90,6 +90,10 @@ String _optional_ pre-build | build | pre-deploy | deploy | post-deploy
 If this flag is not provided, all tasks will be run in order: `pre-build` `build` `pre-deploy` `deploy` `post-deploy`
 
 If the flag is provided only that task will be run
+
+Note for all `.sh` scripts: The env is modified to include:
+- PACKAGE="package-name"
+- IMAGE_ROOT="--image-root || imageRoot"
 
 ##### pre-build
 > applies all kubernetes pre-build manifests and runs all `pre-build.sh` scripts
@@ -151,13 +155,13 @@ Example:
 > --cluster-name
 String _optional_
 
-If provided only the packages with the --cluster-name in their `kube/deploy.json` will be deployed
+If provided only the packages with the --cluster-name in their `kube/deploy.yaml` will be deployed
 
 ```
 --cluster-name dev
 ```
 
-`./packages/example-1/kube/deploy.json`
+`./packages/example-1/kube/deploy.yaml`
 ```
 {
 	"clusters": [ "dev" ]

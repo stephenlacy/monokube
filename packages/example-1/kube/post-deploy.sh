@@ -1,3 +1,3 @@
 #!/bin/sh
 
-echo "post deploy task"
+echo "post deploy task for $PACKAGE"

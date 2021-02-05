@@ -9,10 +9,10 @@ export CLUSTER_NAME=${KUBERNETES_CLUSTER#*/}
 
 go run main.go \
 	--image-root stevelacy \
-	--docker-args="--build-arg PACKAGE={{ .Name }}" \
 	--cluster-name $CLUSTER_NAME \
 	--only-packages example-1 \
-	--command pre-build
-	# --diff "0132547"
+	--command post-deploy \
+	--diff "0132547"
+	# --docker-args="--build-arg VERSION={{ .Version }} --build-arg PACKAGE={{ .Name }}" \
 	# --path ./services
 	# --skip-packages example-1 \

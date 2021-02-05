@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,12 +17,14 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+var configPath = "monokube.yaml"
 var lernaRoot = "lerna.json"
 
 // Package is the deployment spec for a monorepo package
 type Package struct {
 	Name        string
 	Image       string
+	ImageRoot   string
 	Commit      string
 	Version     string
 	BuildDocker bool
@@ -55,10 +56,12 @@ type LernaConfig struct {
 
 // PackageConfig is a basic representation of a lerna config file
 type PackageConfig struct {
-	Version  string   `json:"version"`
-	Clusters []string `json:"clusters"`
-	Watch    bool     `json:"watch"`
-	Kind     string   `json:"kind"`
+	Version    string   `yaml:"version"`
+	Clusters   []string `yaml:"clusters"`
+	Watch      bool     `yaml:"watch"`
+	Kind       string   `yaml:"kind"`
+	DockerArgs string   `yaml:"dockerArgs"`
+	ImageRoot  string   `yaml:"imageRoot"`
 }
 
 var flagCommand = flag.String("command", "", "Specific command to run (build, deploy, post-deploy)")
@@ -84,7 +87,7 @@ func main() {
 
 	flag.Parse()
 	if *flagImageRoot == "" {
-		log.Fatal("arg -image-root is required")
+		color.Red("arg -image-root is required")
 	}
 
 	skippedPackages := strings.Fields(*flagSkipPackages)
@@ -137,6 +140,7 @@ OUTER:
 				color.Cyan("Package %v has not changed since commit %v", name, *flagDiff)
 				continue OUTER
 			}
+			color.Cyan("Package %v has changed since commit %v", name, *flagDiff)
 		}
 		pkg := Package{
 			Name:        name,
@@ -145,22 +149,38 @@ OUTER:
 			Path:        pth,
 			Env:         env,
 		}
-		dockerTpl, err := parseTemplate(*flagDockerArgs, pkg)
-		if err != nil {
-			color.Red("Arg '--docker-args' has an invalid template")
-		}
-		pkg.DockerArgs = dockerTpl
 
 		kglob := parseGlobs([]string{pth + "/kube/*.yaml"})
 
 		pkgCfg, err := getPackageConfig(pth)
 
-		if err == nil {
-			pkg.Version = pkgCfg.Version
-			pkg.Clusters = pkgCfg.Clusters
-			pkg.Kind = pkgCfg.Kind
+		if err != nil {
+			color.Red("unable to parse: " + pth)
+			continue
 		}
-		pkg.Image = getImage(flagImageRoot, pkg)
+
+		dockerArgs := *flagDockerArgs
+		if pkgCfg.DockerArgs != "" {
+			dockerArgs = pkgCfg.DockerArgs
+		}
+
+		dockerTpl, err := parseTemplate(dockerArgs, pkg)
+		if err != nil {
+			color.Red("'--docker-args' has an invalid template")
+		}
+		pkg.DockerArgs = dockerTpl
+
+		pkg.Version = pkgCfg.Version
+		pkg.Clusters = pkgCfg.Clusters
+		pkg.Kind = pkgCfg.Kind
+
+		imageRoot := *flagImageRoot
+		if pkgCfg.ImageRoot != "" {
+			imageRoot = pkgCfg.ImageRoot
+		}
+
+		pkg.Image = getImage(imageRoot, pkg)
+		pkg.ImageRoot = imageRoot
 
 		// Parse k8s templates
 		pkg.Manifests = parseManifests(kglob, pkg)
@@ -292,7 +312,7 @@ func runScripts(packages []Package, scripts string) error {
 		pglob := parseGlobs([]string{pkg.Path + "/kube/" + scripts})
 		for _, pth := range pglob {
 			color.Cyan("running: " + pth)
-			output, err := runOutput(pth)
+			output, err := runPackageOutput(pkg, pth)
 			fmt.Println(output)
 			if err != nil {
 				return err
@@ -309,6 +329,10 @@ func parseManifests(paths []string, pkg Package) []Manifest {
 		runCondition := "normal"
 		if filepath.Base(pth) == "post-deploy.yaml" {
 			runCondition = "post-deploy"
+		}
+		if filepath.Base(pth) == configPath {
+			// ignore config file
+			continue
 		}
 		if err != nil {
 			color.Red("error reading %s: %e \n", pth, err)
@@ -358,7 +382,7 @@ func getPackageConfig(pth string) (PackageConfig, error) {
 	cfg0 := PackageConfig{}
 
 	jsn0 := pth + "/package.json"
-	jsn1 := pth + "/kube/deploy.json"
+	depCfg := pth + "/kube/" + configPath
 	if checkFile(jsn0) {
 		f, err := ioutil.ReadFile(jsn0)
 		if err != nil {
@@ -366,12 +390,12 @@ func getPackageConfig(pth string) (PackageConfig, error) {
 		}
 		json.Unmarshal(f, &cfg0)
 	}
-	if checkFile(jsn1) {
-		f, err := ioutil.ReadFile(jsn1)
+	if checkFile(depCfg) {
+		f, err := ioutil.ReadFile(depCfg)
 		if err != nil {
 			return PackageConfig{}, err
 		}
-		json.Unmarshal(f, &cfg0)
+		yaml.Unmarshal(f, &cfg0)
 	}
 	if cfg0.Kind == "" {
 		cfg0.Kind = "deployment"
@@ -396,12 +420,12 @@ func checkFile(path string) bool {
 	return !info.IsDir()
 }
 
-func getImage(imageRoot *string, pkg Package) string {
+func getImage(imageRoot string, pkg Package) string {
 	commit := ""
 	if pkg.Commit != "" {
 		commit = "-" + pkg.Commit
 	}
-	return strings.TrimSuffix(fmt.Sprintf("%s/%s:%s%s", *imageRoot, pkg.Name, pkg.Version, commit), "\n")
+	return strings.TrimSuffix(fmt.Sprintf("%s/%s:%s%s", imageRoot, pkg.Name, pkg.Version, commit), "\n")
 }
 
 func runBackground(pkg Package, name string, args ...string) error {
@@ -415,6 +439,17 @@ func runBackground(pkg Package, name string, args ...string) error {
 func runOutput(name string, args ...string) (string, error) {
 	cmd := exec.Command(name, args...)
 	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	return out.String(), err
+}
+
+func runPackageOutput(pkg Package, name string, args ...string) (string, error) {
+	cmd := exec.Command(name, args...)
+	var out bytes.Buffer
+	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, "PACKAGE="+pkg.Name)
+	cmd.Env = append(cmd.Env, "IMAGE_ROOT="+pkg.ImageRoot)
 	cmd.Stdout = &out
 	err := cmd.Run()
 	return out.String(), err

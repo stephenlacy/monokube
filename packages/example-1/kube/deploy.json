@@ -1,8 +1,0 @@
-{
-	"clusters": [
-		"k3s",
-		"other"
-	],
-	"watch": true,
-	"kind": "deployment"
-}

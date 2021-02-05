@@ -1,0 +1,7 @@
+clusters:
+  - "k3s"
+  - "other"
+watch: true,
+kind: "deployment"
+dockerArgs: "--build-arg VERSION={{ .Version }} --build-arg PACKAGE={{ .Name }}"
+imageRoot: "stevelacy"
