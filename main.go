@@ -68,6 +68,7 @@ var flagCommand = flag.String("command", "", "Specific command to run (build, de
 var flagImageRoot = flag.String("image-root", "", "Docker image registry and root")
 var flagDryRun = flag.Bool("dry-run", false, "Use flag --dry-run on kubectl")
 var flagDockerArgs = flag.String("docker-args", "", "Docker build args '--build-arg'")
+var flagDockerRoot = flag.String("docker-root", "", "Docker build context root - used in monorepos")
 var flagSkipPackages = flag.String("skip-packages", "", "Skip provided packages '--skip-packages example-1 package-2'")
 var flagOnlyPackages = flag.String("only-packages", "", "Only deploy provided packages '--only-packages example-1'")
 var flagClusterName = flag.String("cluster-name", "", "Cluster name 'dev-cluster'")
@@ -135,6 +136,7 @@ OUTER:
 				continue OUTER
 			}
 		}
+
 		if *flagDiff != "" {
 			if !hasDiff(*flagDiff, pth) {
 				color.Cyan("Package %v has not changed since commit %v", name, *flagDiff)
@@ -142,6 +144,7 @@ OUTER:
 			}
 			color.Cyan("Package %v has changed since commit %v", name, *flagDiff)
 		}
+
 		pkg := Package{
 			Name:        name,
 			Commit:      rev,
@@ -157,6 +160,24 @@ OUTER:
 		if err != nil {
 			color.Red("unable to parse: " + pth)
 			continue
+		}
+
+		// Note: if a package does not have the `cluster` specified it will be deployed always
+		if len(pkgCfg.Clusters) > 0 {
+			if *flagClusterName == "" {
+				color.Yellow("package %s has clusters provided but --cluster-name not provided", pkg.Name)
+			} else {
+				found := false
+				for _, v := range pkgCfg.Clusters {
+					if *flagClusterName == v {
+						found = true
+					}
+				}
+				if !found {
+					color.Yellow("cluster name mismatch - cluster %s not found in %s config", *flagClusterName, pkg.Name)
+					continue OUTER
+				}
+			}
 		}
 
 		dockerArgs := *flagDockerArgs
@@ -209,7 +230,11 @@ OUTER:
 			if !pkg.BuildDocker {
 				continue
 			}
-			cmd := fmt.Sprintf("docker build %s -t %s -f %s %s", pkg.DockerArgs, pkg.Image, dockerPath, pkg.Path)
+			path := *flagDockerRoot
+			if path == "" {
+				path = pkg.Path
+			}
+			cmd := fmt.Sprintf("docker build %s -t %s -f %s %s", pkg.DockerArgs, pkg.Image, dockerPath, path)
 			err := runBackground(pkg, "bash", "-c", cmd)
 			if err != nil {
 				color.Red("error building image %s %e \n", pkg.Image, err)
@@ -407,7 +432,9 @@ func parseGlobs(paths []string) []string {
 	joined := []string{}
 	res, _, _ := glob.Glob(paths)
 	for _, fa := range res {
-		joined = append(joined, fa.Path)
+		if fa.IsDir() {
+			joined = append(joined, fa.Path)
+		}
 	}
 	return joined
 }
@@ -415,6 +442,9 @@ func parseGlobs(paths []string) []string {
 func checkFile(path string) bool {
 	info, err := os.Stat(path)
 	if os.IsNotExist(err) {
+		return false
+	}
+	if info == nil {
 		return false
 	}
 	return !info.IsDir()

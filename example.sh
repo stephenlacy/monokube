@@ -9,7 +9,8 @@ export CLUSTER_NAME=${KUBERNETES_CLUSTER#*/}
 
 go run main.go \
 	--image-root stevelacy \
-	--cluster-name $CLUSTER_NAME \
+	--docker-root '.' \
+	--cluster-name k3s \
 	--only-packages example-1 \
 	--command post-deploy \
 	--diff "0132547"
