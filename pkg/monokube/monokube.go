@@ -224,7 +224,6 @@ OUTER:
 
 	// Build the docker images as needed
 	if *flagCommand == "" || *flagCommand == "build" {
-		color.Cyan("building %d package(s) \n", len(packages))
 		for _, pkg := range packages {
 			dockerPath := pkg.Path + "/Dockerfile"
 			if !pkg.BuildDocker {
@@ -235,17 +234,18 @@ OUTER:
 				path = pkg.Path
 			}
 			cmd := fmt.Sprintf("docker build %s -t %s -f %s %s", pkg.DockerArgs, pkg.Image, dockerPath, path)
+			color.Cyan("building image %s\n", pkg.Image)
 			err := runBackground(pkg, "bash", "-c", cmd)
 			if err != nil {
 				color.Red("error building image %s %e \n", pkg.Image, err)
 				break
 			}
-			color.Cyan("built image: %s\n", pkg.Image)
 
 			if *flagDryRun {
 				color.Yellow("not pushing docker images as dry-run is set")
 				continue
 			}
+			color.Cyan("pushing image: %s\n", pkg.Image)
 			err = runBackground(pkg, "docker", "push", pkg.Image)
 			if err != nil {
 				color.Red("error pushing image %s %e \n", pkg.Image, err)
@@ -293,6 +293,8 @@ func applyManifests(packages []Package, runCondition string) {
 			output = fmt.Sprintf(" --output %s", *flagOutput)
 		}
 
+		color.Cyan("running %s: %s\n", runCondition, pkg.Name)
+
 	OUTER:
 		for _, manifest := range pkg.Manifests {
 			// Run at end
@@ -319,6 +321,7 @@ func applyManifests(packages []Package, runCondition string) {
 
 			}
 			err := runBackground(pkg, "bash", "-c", fmt.Sprintf("echo '%s' | kubectl apply %s%s -f -", manifest.File, output, dryRun))
+			color.Cyan("applying: %s\n", manifest.File)
 			if err != nil {
 				color.New(color.FgRed).Add(color.Bold).Printf("error deploying %s %e \n", pkg.Name, err)
 				break
