@@ -32,6 +32,7 @@ type Package struct {
 	Path        string
 	Manifests   []Manifest
 	Env         map[string]string
+	Namespace   string
 	PackageConfig
 }
 
@@ -39,14 +40,19 @@ type Package struct {
 type Manifest struct {
 	File         string
 	RunCondition string
-	Kube         KubeManifest // unused
+	Kube         KubeManifest
+}
+
+// Metadata is the k8s metadata
+type Metadata struct {
+	Namespace string `yaml:"namespace"`
+	Kind      string `yaml:"kind"`
 }
 
 // KubeManifest represents the basic values needed from k8s
-// unused
 type KubeManifest struct {
-	Name string
-	Kind string
+	Name string `yaml:"name"`
+	Metadata
 }
 
 // LernaConfig is a basic representation of a lerna config file
@@ -57,6 +63,7 @@ type LernaConfig struct {
 // PackageConfig is a basic representation of a lerna config file
 type PackageConfig struct {
 	Version    string   `yaml:"version"`
+	Namespace  string   `yaml:"namespace"`
 	Clusters   []string `yaml:"clusters"`
 	Watch      bool     `yaml:"watch"`
 	Kind       string   `yaml:"kind"`
@@ -328,7 +335,7 @@ func applyManifests(packages []Package, runCondition string) {
 			}
 
 			if !*flagDryRun {
-				runBackground(pkg, "kubectl", "rollout", "status", pkg.Kind+"/"+pkg.Name)
+				runBackground(pkg, "kubectl", "rollout", "status", pkg.Kind+"/"+pkg.Name, "-n", manifest.Kube.Namespace)
 			}
 		}
 	}
