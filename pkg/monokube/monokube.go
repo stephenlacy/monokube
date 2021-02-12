@@ -304,7 +304,7 @@ func applyManifests(packages []Package, runCondition string) {
 		for _, manifest := range pkg.Manifests {
 			// Run at end
 			if manifest.RunCondition != runCondition {
-				color.Cyan("skipping %s %s\n", pkg.Name, manifest.File)
+				color.Cyan("no %s task for %s\n", runCondition, pkg.Name)
 				continue
 			}
 			color.Cyan("running %s: %s\n", runCondition, pkg.Name)
