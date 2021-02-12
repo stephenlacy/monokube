@@ -499,6 +499,7 @@ func runPackageOutput(pkg Package, name string, args ...string) (string, error) 
 	cmd.Env = append(cmd.Env, "PACKAGE="+pkg.Name)
 	cmd.Env = append(cmd.Env, "IMAGE_ROOT="+pkg.ImageRoot)
 	cmd.Stdout = &out
+	cmd.Stderr = os.Stderr
 	err := cmd.Run()
 	return out.String(), err
 }
