@@ -153,7 +153,7 @@ OUTER:
 			Env:         env,
 		}
 
-		kglob := parseGlobs([]string{pth + "/kube/*.yaml"})
+		kglob := parseGlobs([]string{pth + "/kube/*.yaml"}, false)
 
 		pkgCfg, err := getPackageConfig(pth)
 
@@ -267,7 +267,7 @@ OUTER:
 	// All images are built and pushed - now start the kube rollout
 	if *flagCommand == "" || *flagCommand == "deploy" {
 		color.Cyan("running deployments")
-		applyManifests(packages, "normal")
+		applyManifests(packages, "deploy")
 	}
 	// Run the post-deploy tasks
 	if *flagCommand == "" || *flagCommand == "post-deploy" {
@@ -284,23 +284,15 @@ OUTER:
 
 func applyManifests(packages []Package, runCondition string) {
 	for _, pkg := range packages {
-		dryRun := ""
-		output := ""
-		if *flagDryRun {
-			dryRun = " --dry-run"
-		}
-		if *flagOutput != "" {
-			output = fmt.Sprintf(" --output %s", *flagOutput)
-		}
-
-		color.Cyan("running %s: %s\n", runCondition, pkg.Name)
 
 	OUTER:
 		for _, manifest := range pkg.Manifests {
 			// Run at end
 			if manifest.RunCondition != runCondition {
+				color.Cyan("skipping %s %s\n", pkg.Name, manifest.File)
 				continue
 			}
+			color.Cyan("running %s: %s\n", runCondition, pkg.Name)
 			// Check if package has a Cluster specified
 			// Note: if a package does not have the `cluster` specified it will be deployed always
 			if len(pkg.Clusters) > 0 {
@@ -337,11 +329,10 @@ func applyManifests(packages []Package, runCondition string) {
 // runScripts takes a glob pattern as the second argument for `scripts`, {"script.sh,run.sh"}
 func runScripts(packages []Package, scripts string) error {
 	for _, pkg := range packages {
-		pglob := parseGlobs([]string{pkg.Path + "/kube/" + scripts})
+		pglob := parseGlobs([]string{pkg.Path + "/kube/" + scripts}, false)
 		for _, pth := range pglob {
 			color.Cyan("running: " + pth)
 			output, err := runPackageOutput(pkg, pth)
-			fmt.Println(output)
 			if err != nil {
 				return err
 			}
@@ -354,9 +345,12 @@ func parseManifests(paths []string, pkg Package) []Manifest {
 	var manifests []Manifest
 	for _, pth := range paths {
 		f, err := ioutil.ReadFile(pth)
-		runCondition := "normal"
+		runCondition := "deploy"
 		if filepath.Base(pth) == "post-deploy.yaml" {
 			runCondition = "post-deploy"
+		}
+		if filepath.Base(pth) == "pre-deploy.yaml" {
+			runCondition = "pre-deploy"
 		}
 		if filepath.Base(pth) == configPath {
 			// ignore config file
@@ -393,7 +387,7 @@ func getPaths() ([]string, error) {
 	lernaCfg := LernaConfig{}
 
 	if *flagPath != "" {
-		return parseGlobs([]string{fmt.Sprintf("%s/*", *flagPath)}), nil
+		return parseGlobs([]string{fmt.Sprintf("%s/*", *flagPath)}, true), nil
 	}
 	if checkFile(lernaRoot) {
 		f, err := ioutil.ReadFile(lernaRoot)
@@ -401,9 +395,9 @@ func getPaths() ([]string, error) {
 			return []string{}, err
 		}
 		json.Unmarshal(f, &lernaCfg)
-		return parseGlobs(lernaCfg.Packages), nil
+		return parseGlobs(lernaCfg.Packages, true), nil
 	}
-	return parseGlobs([]string{"packages/*"}), nil
+	return parseGlobs([]string{"packages/*"}, true), nil
 }
 
 func getPackageConfig(pth string) (PackageConfig, error) {
@@ -431,11 +425,14 @@ func getPackageConfig(pth string) (PackageConfig, error) {
 	return cfg0, nil
 }
 
-func parseGlobs(paths []string) []string {
+func parseGlobs(paths []string, isDir bool) []string {
 	joined := []string{}
 	res, _, _ := glob.Glob(paths)
 	for _, fa := range res {
-		if fa.IsDir() {
+		if isDir && fa.IsDir() {
+			joined = append(joined, fa.Path)
+		}
+		if !isDir {
 			joined = append(joined, fa.Path)
 		}
 	}
