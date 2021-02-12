@@ -218,7 +218,7 @@ OUTER:
 		scripts := "{pre-build.sh}" // Glob patern
 		err := runScripts(packages, scripts)
 		if err != nil {
-			color.Red("error running pre-build %e", err)
+			color.Red("error running pre-build %e", err.Error())
 		}
 	}
 
@@ -237,7 +237,7 @@ OUTER:
 			color.Cyan("building image %s\n", pkg.Image)
 			err := runBackground(pkg, "bash", "-c", cmd)
 			if err != nil {
-				color.Red("error building image %s %e \n", pkg.Image, err)
+				color.Red("error building image %s %e \n", pkg.Image, err.Error())
 				break
 			}
 
@@ -248,7 +248,7 @@ OUTER:
 			color.Cyan("pushing image: %s\n", pkg.Image)
 			err = runBackground(pkg, "docker", "push", pkg.Image)
 			if err != nil {
-				color.Red("error pushing image %s %e \n", pkg.Image, err)
+				color.Red("error pushing image %s %e \n", pkg.Image, err.Error())
 				break
 			}
 		}
@@ -260,7 +260,7 @@ OUTER:
 		scripts := "{pre-deploy.sh}" // Glob patern
 		err := runScripts(packages, scripts)
 		if err != nil {
-			color.Red("error running pre-deploy %e", err)
+			color.Red("error running pre-deploy %e", err.Error())
 		}
 	}
 
@@ -276,7 +276,7 @@ OUTER:
 		scripts := "{post-deploy.sh}" // Glob patern
 		err := runScripts(packages, scripts)
 		if err != nil {
-			color.Red("error running post-deploy %e", err)
+			color.Red("error running post-deploy %e", err.Error())
 		}
 	}
 	color.Green("all done")
@@ -323,7 +323,7 @@ func applyManifests(packages []Package, runCondition string) {
 			err := runBackground(pkg, "bash", "-c", fmt.Sprintf("echo '%s' | kubectl apply %s%s -f -", manifest.File, output, dryRun))
 			color.Cyan("applying: %s\n", manifest.File)
 			if err != nil {
-				color.New(color.FgRed).Add(color.Bold).Printf("error deploying %s %e \n", pkg.Name, err)
+				color.New(color.FgRed).Add(color.Bold).Printf("error deploying %s %e \n", pkg.Name, err.Error())
 				break
 			}
 
@@ -341,7 +341,9 @@ func runScripts(packages []Package, scripts string) error {
 		for _, pth := range pglob {
 			color.Cyan("running: " + pth)
 			output, err := runPackageOutput(pkg, pth)
-			fmt.Println(output)
+			if *flagOutput != "" {
+				fmt.Println(output)
+			}
 			if err != nil {
 				return err
 			}
@@ -366,12 +368,12 @@ func parseManifests(paths []string, pkg Package) []Manifest {
 			continue
 		}
 		if err != nil {
-			color.Red("error reading %s: %e \n", pth, err)
+			color.Red("error reading %s: %e \n", pth, err.Error())
 			return []Manifest{}
 		}
 		str, err := parseTemplate(string(f), pkg)
 		if err != nil {
-			color.Red("error parsing %s: %e \n", pth, err)
+			color.Red("error parsing %s: %e \n", pth, err.Error())
 			continue
 		}
 		m := KubeManifest{}
