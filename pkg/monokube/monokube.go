@@ -328,14 +328,14 @@ func applyManifests(packages []Package, runCondition string) {
 
 			}
 			err := runBackground(pkg, "bash", "-c", fmt.Sprintf("echo '%s' | kubectl apply %s%s -f -", manifest.File, output, dryRun))
-			color.Cyan("applying: %s\n", manifest.File)
+			// color.Cyan("applying: %s\n", )
 			if err != nil {
 				color.New(color.FgRed).Add(color.Bold).Printf("error deploying %s %e \n", pkg.Name, err.Error())
 				break
 			}
 
 			if !*flagDryRun {
-				runBackground(pkg, "kubectl", "rollout", "status", pkg.Kind+"/"+pkg.Name, "-n", manifest.Kube.Namespace)
+				runBackground(pkg, "kubectl", "rollout", "status", pkg.Kind+"/"+manifest.Kube.Name, "-n", manifest.Kube.Namespace)
 			}
 		}
 	}
