@@ -327,6 +327,7 @@ func applyManifests(packages []Package, runCondition string) {
 				}
 
 			}
+			fmt.Printf("file size: %s\n", len(manifest.File))
 			err := runBackground(pkg, "bash", "-c", fmt.Sprintf("echo '%s' | kubectl apply %s%s -f -", manifest.File, output, dryRun))
 			// color.Cyan("applying: %s\n", )
 			if err != nil {
@@ -362,7 +363,6 @@ func runScripts(packages []Package, scripts string) error {
 func parseManifests(paths []string, pkg Package) []Manifest {
 	var manifests []Manifest
 	for _, pth := range paths {
-		f, err := ioutil.ReadFile(pth)
 		runCondition := "deploy"
 		if filepath.Base(pth) == "post-deploy.yaml" {
 			runCondition = "post-deploy"
@@ -374,13 +374,14 @@ func parseManifests(paths []string, pkg Package) []Manifest {
 			// ignore config file
 			continue
 		}
+		f, err := ioutil.ReadFile(pth)
 		if err != nil {
-			color.Red("error reading %s: %e \n", pth, err.Error())
+			exit("error reading %s: %e \n", pth, err.Error())
 			return []Manifest{}
 		}
 		str, err := parseTemplate(string(f), pkg)
 		if err != nil {
-			color.Red("error parsing %s: %e \n", pth, err.Error())
+			exit("error parsing %s: %e \n", pth, err.Error())
 			continue
 		}
 		m := KubeManifest{}
@@ -524,4 +525,8 @@ func envToMap() map[string]string {
 		mapped[s[0]] = s[1]
 	}
 	return mapped
+}
+func exit(str string, args ...interface{}) {
+	color.Red(str, args)
+	os.Exit(1)
 }
