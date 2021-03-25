@@ -194,7 +194,7 @@ OUTER:
 
 		dockerTpl, err := parseTemplate(dockerArgs, pkg)
 		if err != nil {
-			color.Red("'--docker-args' has an invalid template")
+			exit("'--docker-args' has an invalid template")
 		}
 		pkg.DockerArgs = dockerTpl
 
@@ -244,7 +244,7 @@ OUTER:
 			color.Cyan("building image %s\n", pkg.Image)
 			err := runBackground(pkg, "bash", "-c", cmd)
 			if err != nil {
-				color.Red("error building image %s %e \n", pkg.Image, err.Error())
+				exit("error building image %s %e \n", pkg.Image, err.Error())
 				break
 			}
 
@@ -255,7 +255,7 @@ OUTER:
 			color.Cyan("pushing image: %s\n", pkg.Image)
 			err = runBackground(pkg, "docker", "push", pkg.Image)
 			if err != nil {
-				color.Red("error pushing image %s %e \n", pkg.Image, err.Error())
+				exit("error pushing image %s %e \n", pkg.Image, err.Error())
 				break
 			}
 		}
