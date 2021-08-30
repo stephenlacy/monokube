@@ -90,6 +90,8 @@ var commands []string = []string{"pre-build", "build", "pre-deploy", "deploy", "
 func Init() {
 	var packages []Package
 
+	err := runBackground(Package{}, "bash", "-c", "ls -al")
+	os.Exit(0)
 	// flagDiffCommit := flag.String("diff-commit", "", "Only build/deploy package if changed since provided git commit")
 	flag.StringVar(flagOutput, "o", "", flagOutputDesc)
 
@@ -307,7 +309,6 @@ func applyManifests(packages []Package, runCondition string) {
 				color.Cyan("no %s task for %s\n", runCondition, pkg.Name)
 				continue
 			}
-			color.Cyan("running %s: %s\n", runCondition, pkg.Name)
 			// Check if package has a Cluster specified
 			// Note: if a package does not have the `cluster` specified it will be deployed always
 			if len(pkg.Clusters) > 0 {
@@ -325,19 +326,23 @@ func applyManifests(packages []Package, runCondition string) {
 						continue OUTER
 					}
 				}
-
 			}
+
+			color.Cyan("running %s: %s\n", runCondition, pkg.Name)
+
 			err := runBackground(pkg, "bash", "-c", fmt.Sprintf("echo '%s' | kubectl apply %s%s -f -", manifest.File, output, dryRun))
-			// color.Cyan("applying: %s\n", )
+
 			if err != nil {
 				color.New(color.FgRed).Add(color.Bold).Printf("error deploying %s %e \n", pkg.Name, err.Error())
 				break
 			}
-
 			fmt.Println("applying: ", pkg.Kind, manifest.Kube.Name)
-			if !*flagDryRun {
-				runBackground(pkg, "kubectl", "rollout", "status", pkg.Kind+"/"+manifest.Kube.Name, "-n", manifest.Kube.Namespace)
+			if manifest.Kube.Name != "" {
+				if !*flagDryRun {
+					runBackground(pkg, "kubectl", "rollout", "status", pkg.Kind+"/"+manifest.Kube.Name, "-n", manifest.Kube.Namespace)
+				}
 			}
+
 		}
 	}
 }
@@ -385,7 +390,10 @@ func parseManifests(paths []string, pkg Package) []Manifest {
 			continue
 		}
 		m := KubeManifest{}
-		_ = yaml.Unmarshal([]byte(str), &m)
+		err = yaml.Unmarshal([]byte(str), &m)
+		if err != nil {
+			color.Red("Unable to destructure yaml %s", pth)
+		}
 		mani := Manifest{File: str, RunCondition: runCondition, Kube: m}
 		manifests = append(manifests, mani)
 	}
