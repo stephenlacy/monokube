@@ -265,7 +265,7 @@ OUTER:
 		color.Cyan("running pre-deployment tasks")
 		applyManifests(packages, "pre-deploy")
 		scripts := "{pre-deploy.sh}" // Glob patern
-		err := runScripts(packages, scripts, false)
+		err := runScripts(packages, scripts, true)
 		if err != nil {
 			color.Red("error running pre-deploy %e", err.Error())
 		}
@@ -281,7 +281,7 @@ OUTER:
 		color.Cyan("running post-deployment tasks")
 		applyManifests(packages, "post-deploy")
 		scripts := "{post-deploy.sh}" // Glob patern
-		err := runScripts(packages, scripts, false)
+		err := runScripts(packages, scripts, true)
 		if err != nil {
 			color.Red("error running post-deploy %e", err.Error())
 		}
