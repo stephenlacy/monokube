@@ -223,7 +223,7 @@ OUTER:
 		color.Cyan("running pre-build tasks")
 		applyManifests(packages, "pre-build")
 		scripts := "{pre-build.sh}" // Glob patern
-		err := runScripts(packages, scripts)
+		err := runScripts(packages, scripts, true)
 		if err != nil {
 			color.Red("error running pre-build %e", err.Error())
 		}
@@ -265,7 +265,7 @@ OUTER:
 		color.Cyan("running pre-deployment tasks")
 		applyManifests(packages, "pre-deploy")
 		scripts := "{pre-deploy.sh}" // Glob patern
-		err := runScripts(packages, scripts)
+		err := runScripts(packages, scripts, false)
 		if err != nil {
 			color.Red("error running pre-deploy %e", err.Error())
 		}
@@ -281,7 +281,7 @@ OUTER:
 		color.Cyan("running post-deployment tasks")
 		applyManifests(packages, "post-deploy")
 		scripts := "{post-deploy.sh}" // Glob patern
-		err := runScripts(packages, scripts)
+		err := runScripts(packages, scripts, false)
 		if err != nil {
 			color.Red("error running post-deploy %e", err.Error())
 		}
@@ -346,17 +346,21 @@ func applyManifests(packages []Package, runCondition string) {
 }
 
 // runScripts takes a glob pattern as the second argument for `scripts`, {"script.sh,run.sh"}
-func runScripts(packages []Package, scripts string) error {
+func runScripts(packages []Package, scripts string, runInBackground bool) error {
 	for _, pkg := range packages {
 		pglob := parseGlobs([]string{pkg.Path + "/kube/" + scripts}, false)
 		for _, pth := range pglob {
 			color.Cyan("running: " + pth)
-			output, err := runPackageOutput(pkg, pth)
-			if *flagOutput != "" {
-				fmt.Println(output)
-			}
-			if err != nil {
-				return err
+			if runInBackground {
+				runBackground(pkg, pth)
+			} else {
+				output, err := runPackageOutput(pkg, pth)
+				if *flagOutput != "" {
+					fmt.Println(output)
+				}
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
