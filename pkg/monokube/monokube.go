@@ -90,8 +90,6 @@ var commands []string = []string{"pre-build", "build", "pre-deploy", "deploy", "
 func Init() {
 	var packages []Package
 
-	err := runBackground(Package{}, "bash", "-c", "ls -al")
-	os.Exit(0)
 	// flagDiffCommit := flag.String("diff-commit", "", "Only build/deploy package if changed since provided git commit")
 	flag.StringVar(flagOutput, "o", "", flagOutputDesc)
 
