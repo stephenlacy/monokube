@@ -489,6 +489,9 @@ func getImage(imageRoot string, pkg Package) string {
 
 func runBackground(pkg Package, name string, args ...string) error {
 	cmd := exec.Command(name, args...)
+	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, "PACKAGE="+pkg.Name)
+	cmd.Env = append(cmd.Env, "IMAGE_ROOT="+pkg.ImageRoot)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err := cmd.Run()
