@@ -352,7 +352,7 @@ func runScripts(packages []Package, scripts string, runInBackground bool) error 
 		for _, pth := range pglob {
 			color.Cyan("running: " + pth)
 			if runInBackground {
-				runBackground(pkg, pth)
+				runBackground(pkg, "bash", "-c", pth)
 			} else {
 				output, err := runPackageOutput(pkg, pth)
 				if *flagOutput != "" {
