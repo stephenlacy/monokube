@@ -47,11 +47,11 @@ type Manifest struct {
 type Metadata struct {
 	Namespace string `yaml:"namespace"`
 	Kind      string `yaml:"kind"`
+	Name      string `yaml:"name"`
 }
 
 // KubeManifest represents the basic values needed from k8s
 type KubeManifest struct {
-	Name string `yaml:"name"`
 	Metadata
 }
 
@@ -386,6 +386,7 @@ func parseManifests(paths []string, pkg Package) []Manifest {
 			exit("error reading %s: %e \n", pth, err.Error())
 			return []Manifest{}
 		}
+
 		str, err := parseTemplate(string(f), pkg)
 		if err != nil {
 			exit("error parsing %s: %e \n", pth, err.Error())
